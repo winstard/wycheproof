@@ -80,13 +80,15 @@ providers in [OpenJDK](http://openjdk.java.net/).
 
 ### Usage
 
-- Install [Bazel](https://bazel.build/).
+-   Install [Bazel](https://bazel.build/).
 
-- Install
-[Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files](http://stackoverflow.com/questions/6481627/java-security-illegal-key-size-or-default-parameters): this enables tests with large key
-sizes. Otherwise you'll see a lot of "iilegal key size" exceptions.
+-   Install [Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction
+    Policy
+    Files](http://stackoverflow.com/questions/6481627/java-security-illegal-key-size-or-default-parameters):
+    this enables tests with large key sizes. Otherwise you'll see a lot of
+    "illegal key size" exceptions.
 
-- Check out the tests
+-   Check out the tests
 
 ```
 git clone https://github.com/google/wycheproof.git
@@ -108,6 +110,27 @@ bazel test BouncyCastleAllTests_1_52
 
 ```
 bazel test BouncyCastleAllTests_*
+```
+
+-   To test a local jar, set the `WYCHEPROOF_BOUNCYCASTLE_JAR` environment
+    variable:
+
+```shell
+$ WYCHEPROOF_BOUNCYCASTLE_JAR=/path/to/bouncycastle
+$ bazel test BouncyCastleTestLocal
+$ bazel test BouncyCastleAllTestsLocal
+```
+
+Note: bazel does not currently invalidate the build on environment changes. If
+you change the `WYCHEPROOF_BOUNCYCASTLE_JAR` environment variable, run `bazel
+clean` to force a rebuild:
+
+```shell
+$ WYCHEPROOF_BOUNCYCASTLE_JAR=/path/to/bouncycastle
+$ bazel test BouncyCastleTestLocal
+$ WYCHEPROOF_BOUNCYCASTLE_JAR=/path/to/other/jar
+$ bazel clean
+$ bazel test BouncyCastleTestLocal
 ```
 
 - To test [Spongy Castle](https://rtyley.github.io/spongycastle/), replace
@@ -135,9 +158,31 @@ BouncyCastleTest, SpongyCastleTest or OpenJDKTest -- these targets exclude all
 slow tests (which are annotated with @SlowTest).
 
 Most test targets are failing, and each failure might be a security issue. To
-learn more about what a failed test means, you might want to check out our
-documentation (doc/bugs.md) or the comments on top of the corresponding test
+learn more about what a failed test means, you might want to check out [our
+documentation](doc/bugs.md) or the comments on top of the corresponding test
 function and test class.
+
+- To test [Web Cryptography API](https://www.w3.org/TR/WebCryptoAPI/), you first need
+to compile [End-to-end](https://github.com/google/end-to-end) because our tests depend on it:
+
+```
+bazel build E2EDeps
+```
+
+Since Web Cryptography API works on web browsers, you then need to run a simple web server in your local machine by running, for example:
+
+```
+python -m SimpleHTTPServer
+```
+
+Now assuming that your source code folder's name is "wycheproof", open the web browsers
+that you want to test and point it to:
+
+```
+http://localhost:8000/bazel-wycheproof/javascript/webcryptoapi/WebCryptoTest.html
+```
+
+We have tested Chrome, Firefox, and Microsoft Edge.
 
 ### Hall of Bugs
 

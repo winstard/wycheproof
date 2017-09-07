@@ -16,6 +16,8 @@
 
 package com.google.security.wycheproof;
 
+import static org.junit.Assert.*;
+
 import com.google.security.wycheproof.WycheproofRunner.ProviderType;
 import com.google.security.wycheproof.WycheproofRunner.SlowTest;
 import java.math.BigInteger;
@@ -29,7 +31,7 @@ import javax.crypto.KeyAgreement;
 import javax.crypto.interfaces.DHPrivateKey;
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.DHPublicKeySpec;
-import junit.framework.TestCase;
+import org.junit.Test;
 
 /**
  * Testing Diffie-Hellman key agreement.
@@ -138,7 +140,7 @@ import junit.framework.TestCase;
  *
  * @author bleichen@google.com (Daniel Bleichenbacher)
  */
-public class DhTest extends TestCase {
+public class DhTest {
   public DHParameterSpec ike1536() {
     final BigInteger p =
         new BigInteger(
@@ -192,6 +194,8 @@ public class DhTest extends TestCase {
   }
 
   /** Check that key agreement using DH works. */
+  @SuppressWarnings("InsecureCryptoUsage")
+  @Test
   public void testDh() throws Exception {
     KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DH");
     DHParameterSpec dhparams = ike2048();
@@ -252,7 +256,7 @@ public class DhTest extends TestCase {
     BigInteger p = priv.getParams().getP();
     BigInteger g = priv.getParams().getG();
     int keySize = p.bitLength();
-    assertEquals("wrong key size", keySize, expectedKeySize);
+    assertEquals("wrong key size", expectedKeySize, keySize);
 
     // Checks the key size of the private key.
     // NIST SP 800-56A requires that x is in the range (1, q-1).
@@ -320,6 +324,9 @@ public class DhTest extends TestCase {
    * <p> This is a slow test since some providers (e.g. BouncyCastle) generate new safe primes
    * for each new key.
    */
+  @SuppressWarnings("InsecureCryptoUsage")
+  @SlowTest(providers = {ProviderType.BOUNCY_CASTLE, ProviderType.SPONGY_CASTLE})
+  @Test
   public void testKeyPairGenerator() throws Exception {
     int keySize = 1024;
     KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DH");
@@ -329,6 +336,8 @@ public class DhTest extends TestCase {
   }
 
   /** This test tries a key agreement with keys using distinct parameters. */
+  @SuppressWarnings("InsecureCryptoUsage")
+  @Test
   public void testDHDistinctParameters() throws Exception {
     KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DH");
     keyGen.initialize(ike1536());
@@ -358,7 +367,11 @@ public class DhTest extends TestCase {
    * itself cannot prevent all small-subgroup attacks because of the missing parameter q in the
    * Diffie-Hellman parameters. Implementations must add additional countermeasures such as the ones
    * proposed in RFC 2785.
+   *
+   * <p> CVE-2016-1000346: BouncyCastle before v.1.56 did not validate the other parties public key.
    */
+  @SuppressWarnings("InsecureCryptoUsage")
+  @Test
   public void testSubgroupConfinement() throws Exception {
     KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DH");
     DHParameterSpec params = ike2048();

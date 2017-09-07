@@ -16,6 +16,8 @@
 
 package com.google.security.wycheproof;
 
+import static org.junit.Assert.*;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,10 +30,10 @@ import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import junit.framework.TestCase;
+import org.junit.Test;
 
 /** CipherInputStream tests */
-public class CipherInputStreamTest extends TestCase {
+public class CipherInputStreamTest {
   static final SecureRandom rand = new SecureRandom();
 
   static byte[] randomBytes(int size) {
@@ -61,7 +63,7 @@ public class CipherInputStreamTest extends TestCase {
     public byte[] aad;
     public byte[] ct;
 
-    @SuppressWarnings("InsecureCipherMode")
+    @SuppressWarnings("InsecureCryptoUsage")
     public TestVector(
         String algorithm, int keySize, int ivSize, int tagSize, int ptSize, int aadSize)
         throws Exception {
@@ -100,7 +102,7 @@ public class CipherInputStreamTest extends TestCase {
     return result;
   }
 
-  @SuppressWarnings("InsecureCipherMode")
+  @SuppressWarnings("InsecureCryptoUsage")
   public void testEncrypt(Iterable<TestVector> tests) throws Exception {
     for (TestVector t : tests) {
       Cipher cipher = Cipher.getInstance(t.algorithm);
@@ -124,7 +126,7 @@ public class CipherInputStreamTest extends TestCase {
   }
 
   /** JDK-8016249: CipherInputStream in decrypt mode fails on close with AEAD ciphers */
-  @SuppressWarnings("InsecureCipherMode")
+  @SuppressWarnings("InsecureCryptoUsage")
   public void testDecrypt(Iterable<TestVector> tests) throws Exception {
     for (TestVector t : tests) {
       Cipher cipher = Cipher.getInstance(t.algorithm);
@@ -155,7 +157,7 @@ public class CipherInputStreamTest extends TestCase {
    * with BouncyCastle v 1.52. A possible explanation is that BouncyCastle has its own
    * implemenatation of CipherInputStream (org.bouncycastle.crypto.io.CipherInputStream).
    */
-  @SuppressWarnings("InsecureCipherMode")
+  @SuppressWarnings("InsecureCryptoUsage")
   public void testCorruptDecrypt(Iterable<TestVector> tests) throws Exception {
     for (TestVector t : tests) {
       Cipher cipher = Cipher.getInstance(t.algorithm);
@@ -189,7 +191,7 @@ public class CipherInputStreamTest extends TestCase {
     }
   }
 
-  @SuppressWarnings("InsecureCipherMode")
+  @SuppressWarnings("InsecureCryptoUsage")
   public void testCorruptDecryptEmpty(Iterable<TestVector> tests) throws Exception {
     for (TestVector t : tests) {
       Cipher cipher = Cipher.getInstance(t.algorithm);
@@ -217,6 +219,7 @@ public class CipherInputStreamTest extends TestCase {
     }
   }
 
+  @Test
   public void testAesGcm() throws Exception {
     final int[] keySizes = {16, 32};
     final int[] ivSizes = {12};
@@ -229,6 +232,7 @@ public class CipherInputStreamTest extends TestCase {
     testDecrypt(v);
   }
 
+  @Test
   public void testCorruptAesGcm() throws Exception {
     final int[] keySizes = {16, 32};
     final int[] ivSizes = {12};
@@ -245,6 +249,7 @@ public class CipherInputStreamTest extends TestCase {
    * ciphertexts. Because of this we test empty plaintext separately to distinguish behaviour
    * considered acceptable by Oracle from other behaviour.
    */
+  @Test
   public void testEmptyPlaintext() throws Exception {
     final int[] keySizes = {16, 32};
     final int[] ivSizes = {12};
@@ -257,6 +262,7 @@ public class CipherInputStreamTest extends TestCase {
   }
 
   /** Tests CipherOutputStream with AES-EAX if this algorithm is supported by the provider. */
+  @Test
   public void testAesEax() throws Exception {
     final String algorithm = "AES/EAX/NoPadding";
     final int[] keySizes = {16, 32};

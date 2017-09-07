@@ -16,14 +16,17 @@
 
 package com.google.security.wycheproof;
 
+import static org.junit.Assert.*;
+
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.HashSet;
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
-import junit.framework.TestCase;
+import org.junit.Test;
 
 /**
  * RSA encryption tests
@@ -35,7 +38,7 @@ import junit.framework.TestCase;
 // - plaintext too long
 // - ciphertext 0
 // - ciphertext == modulus timing attacks
-public class RsaEncryptionTest extends TestCase {
+public class RsaEncryptionTest {
 
   /**
    * Providers that implement RSA with PKCS1Padding but not OAEP are outdated and should be avoided
@@ -43,6 +46,7 @@ public class RsaEncryptionTest extends TestCase {
    * cipher. There is a great danger that PKCS1Padding is used as a temporary workaround, but later
    * stays in the project for much longer than necessary.
    */
+  @Test
   public void testOutdatedProvider() throws Exception {
     try {
       Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
@@ -94,7 +98,7 @@ public class RsaEncryptionTest extends TestCase {
    *       differences are too small to be reliably detectable in unit tests.
    * </ul>
    */
-  @SuppressWarnings("InsecureCipherMode")
+  @SuppressWarnings("InsecureCryptoUsage")
   public void testExceptions(String algorithm) throws Exception {
     KeyPairGenerator keygen = KeyPairGenerator.getInstance("RSA");
     keygen.initialize(1024);
@@ -107,6 +111,18 @@ public class RsaEncryptionTest extends TestCase {
     for (int i = 0; i < samples; i++) {
       rand.nextBytes(ciphertext);
       ciphertext[0] &= (byte) 0x7f;
+      try {
+        c.init(Cipher.DECRYPT_MODE, keypair.getPrivate());
+        c.doFinal(ciphertext);
+      } catch (Exception ex) {
+        exceptions.add(ex.toString());
+      }
+    }
+    Cipher enc = Cipher.getInstance("RSA/ECB/NOPADDING");
+    byte[][] paddedKeys = generatePkcs1Vectors(1024 / 8);
+    for (int i = 0; i < paddedKeys.length; i++) {
+      enc.init(Cipher.ENCRYPT_MODE, keypair.getPublic());
+      ciphertext = enc.doFinal(paddedKeys[i]);
       try {
         c.init(Cipher.DECRYPT_MODE, keypair.getPrivate());
         c.doFinal(ciphertext);
@@ -128,11 +144,88 @@ public class RsaEncryptionTest extends TestCase {
    * chosen message attacks. Nonetheless, to minimize the damage of such an attack an implementation
    * should minimize the information about the failure in the padding.
    */
+  @Test
   public void testExceptionsPKCS1() throws Exception {
     testExceptions("RSA/ECB/PKCS1PADDING");
   }
 
+  @Test
   public void testGetExceptionsOAEP() throws Exception {
     testExceptions("RSA/ECB/OAEPWITHSHA-1ANDMGF1PADDING");
+  }
+
+  /**
+   * Generates PKCS#1 invalid vectors
+   * @param rsaKeyLength
+   */
+  private byte[][] generatePkcs1Vectors(int rsaKeyLength) {
+    // create plain padded keys
+    byte[][] plainPaddedKeys = new byte[13][];
+    // no 0x00 byte to deliver a symmetric key
+    plainPaddedKeys[0] = getEK_NoNullByte(rsaKeyLength);
+    // 0x00 too early in the padding
+    plainPaddedKeys[1] = getEK_NullByteInPadding(rsaKeyLength);
+    // 0x00 too early in the PKCS#1 padding
+    plainPaddedKeys[2] = getEK_NullByteInPkcsPadding(rsaKeyLength);
+    // decrypted ciphertext starting with 0x17 0x02
+    plainPaddedKeys[3] = getEK_WrongFirstByte(rsaKeyLength);
+    // decrypted ciphertext starting with 0x00 0x17
+    plainPaddedKeys[4] = getEK_WrongSecondByte(rsaKeyLength);
+    // different lengths of the decrypted unpadded key
+    plainPaddedKeys[5] = getPaddedKey(rsaKeyLength, 0);
+    plainPaddedKeys[6] = getPaddedKey(rsaKeyLength, 1);
+    plainPaddedKeys[7] = getPaddedKey(rsaKeyLength, 8);
+    plainPaddedKeys[8] = getPaddedKey(rsaKeyLength, 16);
+    plainPaddedKeys[9] = getPaddedKey(rsaKeyLength, 96);
+    // the decrypted padded plaintext is shorter than RSA key
+    plainPaddedKeys[10] = getPaddedKey(rsaKeyLength - 1, 16);
+    plainPaddedKeys[11] = getPaddedKey(rsaKeyLength - 2, 16);
+    // just 0x00 bytes
+    plainPaddedKeys[12] = new byte[rsaKeyLength];
+    return plainPaddedKeys;
+  }
+
+  private byte[] getPaddedKey(int rsaKeyLength, int symmetricKeyLength) {
+    byte[] key = new byte[rsaKeyLength];
+    // fill all the bytes with non-zero values
+    Arrays.fill(key, (byte) 42);
+    // set the first byte to 0x00
+    key[0] = 0x00;
+    // set the second byte to 0x02
+    key[1] = 0x02;
+    // set the separating byte
+    if (symmetricKeyLength != -1) {
+      key[rsaKeyLength - symmetricKeyLength - 1] = 0x00;
+    }
+    return key;
+  }
+
+  private byte[] getEK_WrongFirstByte(int rsaKeyLength) {
+    byte[] key = getPaddedKey(rsaKeyLength, 16);
+    key[0] = 23;
+    return key;
+  }
+
+  private byte[] getEK_WrongSecondByte(int rsaKeyLength) {
+    byte[] key = getPaddedKey(rsaKeyLength, 16);
+    key[1] = 23;
+    return key;
+  }
+
+  private byte[] getEK_NoNullByte(int rsaKeyLength) {
+    byte[] key = getPaddedKey(rsaKeyLength, -1);
+    return key;
+  }
+
+  private byte[] getEK_NullByteInPkcsPadding(int rsaKeyLength) {
+    byte[] key = getPaddedKey(rsaKeyLength, 16);
+    key[3] = 0x00;
+    return key;
+  }
+
+  private byte[] getEK_NullByteInPadding(int rsaKeyLength) {
+    byte[] key = getPaddedKey(rsaKeyLength, 16);
+    key[11] = 0x00;
+    return key;
   }
 }

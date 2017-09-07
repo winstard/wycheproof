@@ -11,6 +11,7 @@ java_library(
 
 common_deps = [
     ":utils",
+    "@gson//:Gson"
 ]
 
 test_srcs = glob(["java/com/google/security/wycheproof/testcases/*.java"]) + ["java/com/google/security/wycheproof/WycheproofRunner.java"]
@@ -36,6 +37,17 @@ bouncycastle_all_tests(
     srcs = ["java/com/google/security/wycheproof/BouncyCastleAllTests.java"] + test_srcs,
     test_class = "com.google.security.wycheproof.BouncyCastleAllTests",
     deps = common_deps,
+)
+
+java_test(
+    name = "BouncyCastleAllTestsLocal",
+    # this target requires specifing a shell variable, thus won't work with the wildcard target patterns.
+    # with tags=["manual"] it'll be excluded from said patterns.
+    tags = ["manual"],
+    size = "large",
+    srcs = ["java/com/google/security/wycheproof/BouncyCastleAllTests.java"] + test_srcs,
+    test_class = "com.google.security.wycheproof.BouncyCastleAllTests",
+    deps = common_deps + ["@local//:bouncycastle_jar"],
 )
 
 # Generates SpongyCastleAllTests_1_xx target for all available versions,
@@ -79,6 +91,17 @@ bouncycastle_tests(
     deps = common_deps,
 )
 
+java_test(
+    name = "BouncyCastleTestLocal",
+    # this target requires specifing a shell variable, thus won't work with the wildcard target patterns.
+    # with tags=["manual"] it'll be excluded from said patterns.
+    tags = ["manual"],
+    size = "large",
+    srcs = ["java/com/google/security/wycheproof/BouncyCastleTest.java"] + test_srcs,
+    test_class = "com.google.security.wycheproof.BouncyCastleTest",
+    deps = common_deps + ["@local//:bouncycastle_jar"],
+)
+
 # Generates SpongyCastleTest_1_xx target for all available versions,
 # plus a SpongyCastleTest alias for latest stable.
 #
@@ -120,4 +143,29 @@ java_test(
     size = "small",
     srcs = ["java/com/google/security/wycheproof/ProviderIndependentTest.java"] + test_srcs,
     deps = common_deps,
+)
+
+# Tests using JSON formated test vectors.
+testvectors = [
+    "//testvectors:aes_gcm",
+    "//testvectors:aes_gcm_siv",
+    "//testvectors:dsa",
+    "//testvectors:ecdsa",
+    "//testvectors:rsa_signature",
+]
+
+java_test(
+    name = "JsonTest",
+    size = "small",
+    srcs = ["java/com/google/security/wycheproof/JsonTest.java"] + test_srcs,
+    data = testvectors,
+    deps = common_deps,
+)
+
+# Load closure rules
+load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_deps")
+
+closure_js_deps(
+    name = "E2EDeps",
+    deps = ["@e2e//:E2E"],
 )
